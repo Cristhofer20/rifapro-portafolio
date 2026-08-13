@@ -978,6 +978,24 @@ function bindEvents() {
   setFilterListeners();
 }
 
+function ensureDefaultAdmin() {
+  const adminEmail = APP_CONFIG.defaultAdmin.email.toLowerCase();
+
+  const adminExists = state.users.some(
+    user => user.email?.toLowerCase() === adminEmail
+  );
+
+  if (!adminExists) {
+    state.users.push({
+      id: 'admin-default',
+      ...APP_CONFIG.defaultAdmin,
+      createdAt: new Date().toISOString()
+    });
+
+    saveUsers(state);
+  }
+}
+
 function initialize() {
   loadAppState(state);
   ensureDefaultAdmin();
