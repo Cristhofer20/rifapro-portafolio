@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RifaPro | Gestión de Rifas</title>
+  <meta name="description" content="Aplicación web para gestionar rifas, clientes, pagos, números y ganadores." />
+    <link rel="stylesheet" href="src/styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div>
+        <h1>🎟️ RifaPro</h1>
+        <p class="subtitle">Gestión de rifas, participantes, pagos y ganadores desde un solo panel.</p>
+      </div>
+      <div id="topActions" class="top-actions"></div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="container">
+      <!-- SECCIÓN 1: AUTENTICACIÓN -->
+      <section id="authSection" class="card auth-card">
+        <form id="authForm" class="entity-form">
+          <h2 id="authModeTitle">Iniciar sesión</h2>
+          <div id="authNameField" class="field-row hidden">
+            <input id="authName" type="text" placeholder="Nombre completo" />
+          </div>
+          <div class="field-row">
+            <input id="authEmail" type="email" placeholder="Correo electrónico" />
+            <input id="authPassword" type="password" placeholder="Contraseña" />
+          </div>
+          <div class="actions-row">
+            <button id="authSubmitBtn">Entrar</button>
+          </div>
+          <p id="authHint" class="hint">Admin por defecto: admin@example.com / admin123</p>
+          <p class="hint">
+            <span id="authModeText">¿No tienes cuenta?</span>
+            <button id="authModeToggle" type="button" class="secondary small">Registrarse</button>
+          </p>
+        </form>
+      </section>
+
+      <!-- SECCIÓN 2: DASHBOARD GENERAL (SOLO ADMIN) -->
+      <section id="dashboardSection" class="card hidden">
+        <h2>📊 Dashboard Administrativo</h2>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <small>Total clientes</small>
+            <strong id="summaryClients">0</strong>
+          </div>
+          <div class="summary-card">
+            <small>Total rifas</small>
+            <strong id="summaryEvents">0</strong>
+          </div>
+          <div class="summary-card">
+            <small>Próximas rifas</small>
+            <strong id="summaryUpcoming">0</strong>
+          </div>
+          <div class="summary-card">
+            <small>Rifas realizadas</small>
+            <strong id="summaryCompleted">0</strong>
+          </div>
+          <div class="summary-card">
+            <small>Pagos recibidos</small>
+            <strong id="summaryPayments">0</strong>
+          </div>
+        </div>
+        <div id="dashboardDetails" class="dashboard-details"></div>
+      </section>
+
+      <!-- SECCIÓN 3: RESUMEN DE PAGOS (CLIENTE Y ADMIN) -->
+      <section id="paymentSummarySection" class="card hidden">
+        <h2>💳 Mis Pagos</h2>
+        <div id="paymentSummaryList"></div>
+      </section>
+
+      <!-- SECCIÓN 4: GESTIÓN DE CLIENTES (ADMIN) -->
+      <section id="adminClientsSection" class="card hidden">
+        <h2>👥 Gestión de clientes</h2>
+        <form id="clientForm" class="entity-form">
+          <div class="form-title">Agregar / Editar Cliente</div>
+          <div class="field-row">
+            <input id="clientName" type="text" placeholder="Nombre completo" />
+            <input id="clientEmail" type="email" placeholder="Correo electrónico" />
+          </div>
+          <div class="field-row">
+            <input id="clientDni" type="text" placeholder="DNI del cliente" />
+            <input id="clientPassword" type="password" placeholder="Contraseña" />
+          </div>
+          <div class="field-row">
+            <input id="clientRole" type="text" value="client" disabled />
+          </div>
+          <div class="actions-row">
+            <button id="saveClientBtn">Agregar cliente</button>
+            <button id="cancelClientEditBtn" type="button" class="secondary hidden">Cancelar edición</button>
+          </div>
+        </form>
+        <div class="field-row" style="margin-top: 24px;">
+          <input id="clientSearch" type="text" placeholder="🔍 Buscar clientes por nombre, email o DNI" />
+        </div>
+        <div id="clientList" class="client-grid"></div>
+      </section>
+
+      <!-- SECCIÓN 5: GESTIÓN DE EVENTOS (ADMIN) -->
+      <section id="adminEventsSection" class="card hidden">
+        <h2>🎉 Gestión de eventos</h2>
+        <form id="eventForm" class="entity-form">
+          <div class="form-title">Crear / Editar Evento</div>
+          <div class="field-row">
+            <input id="eventTitle" type="text" placeholder="Título de la rifa" />
+            <input id="eventDate" type="date" />
+          </div>
+          <div class="field-row">
+            <input id="eventWinnersCount" type="number" min="1" placeholder="Cantidad de ganadores" />
+            <input id="eventImage" type="url" placeholder="URL de imagen del premio" />
+          </div>
+          <textarea id="eventDescription" rows="4" placeholder="Descripción del evento"></textarea>
+          <div class="actions-row">
+            <button id="saveEventBtn">Crear evento</button>
+            <button id="cancelEventEditBtn" type="button" class="secondary hidden">Cancelar edición</button>
+          </div>
+        </form>
+        <div class="tabs" id="adminEventFilters">
+          <button class="tab active" data-filter="all">Todas</button>
+          <button class="tab" data-filter="upcoming">Próximas</button>
+          <button class="tab" data-filter="completed">Realizadas</button>
+          <button class="tab" data-filter="past">Anteriores</button>
+        </div>
+        <div id="adminEventsList"></div>
+      </section>
+
+      <!-- SECCIÓN 6: PERFIL DE CLIENTE -->
+      <section id="clientProfileSection" class="card hidden">
+        <h2>👤 Mi Perfil</h2>
+        <form id="profileForm" class="entity-form">
+          <div class="profile-form-group">
+            <label>Nombre Completo</label>
+            <input id="profileName" type="text" placeholder="Nombre completo" />
+          </div>
+          <div class="profile-form-group">
+            <label>Correo Electrónico</label>
+            <input id="profileEmail" type="email" placeholder="Correo electrónico" disabled />
+          </div>
+          <div class="profile-form-group">
+            <label>Nueva Contraseña</label>
+            <input id="profilePassword" type="password" placeholder="Nueva contraseña (opcional)" />
+          </div>
+          <div class="profile-form-group">
+            <label>Foto de Perfil</label>
+            <label class="file-upload">
+              <span>📷 Seleccionar foto</span>
+              <input id="profilePhoto" type="file" accept="image/*" />
+            </label>
+            <div id="profilePhotoPreview" class="profile-photo-preview hidden"></div>
+          </div>
+          <div class="actions-row">
+            <button id="saveProfileBtn">💾 Guardar cambios</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- SECCIÓN 7: EVENTOS DE CLIENTE -->
+      <section id="clientEventsSection" class="card hidden">
+        <h2>🎟️ Mis Eventos</h2>
+        <div class="tabs" id="clientEventFilters">
+          <button class="tab active" data-filter="upcoming">Próximas</button>
+          <button class="tab" data-filter="completed">Realizadas</button>
+          <button class="tab" data-filter="past">Anteriores</button>
+        </div>
+        <div class="carousel-wrapper">
+          <div id="clientEventsList" class="carousel-track"></div>
+          <div class="carousel-controls">
+            <button id="clientEventsPrevBtn" class="small secondary">← Anterior</button>
+            <button id="clientEventsNextBtn" class="small secondary">Siguiente →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 8: PANEL DE PAGO -->
+      <section id="paymentSection" class="card payment-card hidden">
+        <h2>💳 Pago de Participación</h2>
+        <div class="payment-info">
+          <p id="paymentTitle" class="payment-event-title">Pago S/10 para participar</p>
+          <p class="payment-description">Simulación de pago para demostración del portafolio. No procesa dinero real.</p>
+        </div>
+        <div class="payment-options">
+          <button type="button" class="payment-btn" data-method="yape">💳 Yape</button>
+          <button type="button" class="payment-btn" data-method="plin">💳 Plin</button>
+        </div>
+        <div id="paymentNumberSelector" class="number-grid-container"></div>
+        <div id="paymentQrDisplay" class="qr-display"></div>
+        <button id="closePaymentBtn" type="button" class="secondary small">Cerrar pago</button>
+      </section>
+
+      <!-- MODAL DE COMPROBANTE -->
+      <div id="receiptModal" class="modal hidden">
+        <div class="modal-content">
+          <button id="closeReceiptBtn" class="modal-close">✕</button>
+          <div id="receiptContent" style="padding: 20px;"></div>
+          <div class="modal-actions">
+            <button id="downloadPdfBtn" class="payment-btn">📥 Descargar PDF</button>
+            <button id="closeReceiptBtnBottom" class="secondary">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- TOAST NOTIFICATIONS -->
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
