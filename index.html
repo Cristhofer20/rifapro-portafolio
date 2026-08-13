@@ -19,10 +19,13 @@
       <div id="topActions" class="top-actions"></div>
     </header>
 
-    <!-- MAIN CONTAINER -->
-    <main class="container">
-      <!-- SECCIÓN 1: AUTENTICACIÓN -->
-      <section id="authSection" class="card auth-card">
+    <div class="content-shell">
+      <aside id="sidebarNav" class="sidebar hidden"></aside>
+
+      <!-- MAIN CONTAINER -->
+      <main class="container main-panel">
+        <!-- SECCIÓN 1: AUTENTICACIÓN -->
+        <section id="authSection" class="card auth-card">
         <form id="authForm" class="entity-form">
           <h2 id="authModeTitle">Iniciar sesión</h2>
           <div id="authNameField" class="field-row hidden">
@@ -35,7 +38,7 @@
           <div class="actions-row">
             <button id="authSubmitBtn">Entrar</button>
           </div>
-          <p id="authHint" class="hint">Admin por defecto: admin@example.com / admin123</p>
+          <p id="authHint" class="hint">Inicia sesión con tu cuenta o crea una nueva cuenta de cliente.</p>
           <p class="hint">
             <span id="authModeText">¿No tienes cuenta?</span>
             <button id="authModeToggle" type="button" class="secondary small">Registrarse</button>
@@ -73,7 +76,7 @@
 
       <!-- SECCIÓN 3: RESUMEN DE PAGOS (CLIENTE Y ADMIN) -->
       <section id="paymentSummarySection" class="card hidden">
-        <h2>💳 Mis Pagos</h2>
+        <h2 id="paymentSummaryTitle">💳 Mis Pagos</h2>
         <div id="paymentSummaryList"></div>
       </section>
 
@@ -118,6 +121,7 @@
             <input id="eventImage" type="url" placeholder="URL de imagen del premio" />
           </div>
           <textarea id="eventDescription" rows="4" placeholder="Descripción del evento"></textarea>
+          <div id="eventNumbersEditor" class="event-number-editor hidden"></div>
           <div class="actions-row">
             <button id="saveEventBtn">Crear evento</button>
             <button id="cancelEventEditBtn" type="button" class="secondary hidden">Cancelar edición</button>
@@ -210,7 +214,7 @@
 
     <!-- TOAST NOTIFICATIONS -->
     <div id="toast" class="toast hidden"></div>
-  </div>
+      </main>
 
   <script type="module" src="src/main.js"></script>
 </body>

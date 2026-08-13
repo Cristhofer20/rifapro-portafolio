@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createNumberPool, reserveNumberForEvent, isNumberAvailable } from '../src/raffleNumbers.js';
+import {
+  createNumberPool,
+  reserveNumberForEvent,
+  isNumberAvailable,
+  getNumberStatusLabel,
+  nextNumberStatus,
+} from '../src/raffleNumbers.js';
 
 test('createNumberPool generates 100 unique numbers', () => {
   const pool = createNumberPool();
@@ -17,4 +23,13 @@ test('reserveNumberForEvent prevents duplicates and marks sold numbers', () => {
   assert.equal(reserveNumberForEvent(event, 12, 'user-1'), true);
   assert.equal(isNumberAvailable(event, 12), false);
   assert.equal(reserveNumberForEvent(event, 12, 'user-2'), false);
+});
+
+test('nextNumberStatus cycles through available, sold and blocked states', () => {
+  assert.equal(nextNumberStatus('available'), 'sold');
+  assert.equal(nextNumberStatus('sold'), 'blocked');
+  assert.equal(nextNumberStatus('blocked'), 'available');
+  assert.equal(getNumberStatusLabel('available'), 'Disponible');
+  assert.equal(getNumberStatusLabel('sold'), 'Vendido');
+  assert.equal(getNumberStatusLabel('blocked'), 'Bloqueado');
 });

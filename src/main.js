@@ -1,10 +1,16 @@
-import { createNumberPool, reserveNumberForEvent } from './raffleNumbers.js';
+import {
+  createNumberPool,
+  getNumberStatusLabel,
+  nextNumberStatus,
+  reserveNumberForEvent,
+} from './raffleNumbers.js';
 import { APP_CONFIG } from './config.js';
 import { state } from './state.js';
 import { loadAppState, saveUsers, saveEvents, savePayments, saveSession } from './storage.js';
 import { formatDate, getEventStatus, getEventStatusLabel, setActiveTab } from './helpers.js';
 
 const elements = {
+  sidebarNav: document.getElementById('sidebarNav'),
   authSection: document.getElementById('authSection'),
   authForm: document.getElementById('authForm'),
   authNameField: document.getElementById('authNameField'),
@@ -13,6 +19,7 @@ const elements = {
   authPassword: document.getElementById('authPassword'),
   authSubmitBtn: document.getElementById('authSubmitBtn'),
   authHint: document.getElementById('authHint'),
+  authModeTitle: document.getElementById('authModeTitle'),
   authModeText: document.getElementById('authModeText'),
   authModeToggle: document.getElementById('authModeToggle'),
   topActions: document.getElementById('topActions'),
@@ -24,6 +31,7 @@ const elements = {
   summaryPayments: document.getElementById('summaryPayments'),
   dashboardDetails: document.getElementById('dashboardDetails'),
   paymentSummarySection: document.getElementById('paymentSummarySection'),
+  paymentSummaryTitle: document.getElementById('paymentSummaryTitle'),
   paymentSummaryList: document.getElementById('paymentSummaryList'),
   adminClientsSection: document.getElementById('adminClientsSection'),
   clientForm: document.getElementById('clientForm'),
@@ -42,6 +50,7 @@ const elements = {
   eventWinnersCount: document.getElementById('eventWinnersCount'),
   eventImage: document.getElementById('eventImage'),
   eventDescription: document.getElementById('eventDescription'),
+  eventNumbersEditor: document.getElementById('eventNumbersEditor'),
   saveEventBtn: document.getElementById('saveEventBtn'),
   cancelEventEditBtn: document.getElementById('cancelEventEditBtn'),
   adminEventFilters: document.getElementById('adminEventFilters'),
@@ -71,6 +80,80 @@ const elements = {
   closeReceiptBtnBottom: document.getElementById('closeReceiptBtnBottom'),
 };
 
+function showToast(message) {
+  elements.toast.textContent = message;
+  elements.toast.classList.remove('hidden');
+  clearTimeout(showToast.timeoutId);
+  showToast.timeoutId = setTimeout(() => {
+    elements.toast.classList.add('hidden');
+  }, 2400);
+}
+
+function setSidebarSection(sectionKey) {
+  if (!state.currentUser) return;
+  state.activeSection = sectionKey;
+  renderSidebarNav();
+
+  const adminSections = {
+    dashboard: elements.dashboardSection,
+    payments: elements.paymentSummarySection,
+    clients: elements.adminClientsSection,
+    events: elements.adminEventsSection,
+  };
+
+  const clientSections = {
+    profile: elements.clientProfileSection,
+    payments: elements.paymentSummarySection,
+    events: elements.clientEventsSection,
+  };
+
+  const allSections = { ...adminSections, ...clientSections };
+
+  Object.values(allSections).forEach(section => {
+    section.classList.add('hidden');
+  });
+
+  const sections = state.currentUser.role === 'admin' ? adminSections : clientSections;
+  Object.entries(sections).forEach(([key, section]) => {
+    section.classList.toggle('hidden', key !== sectionKey);
+  });
+}
+
+function renderSidebarNav() {
+  elements.sidebarNav.innerHTML = '';
+  elements.sidebarNav.classList.add('hidden');
+
+  if (!state.currentUser) return;
+
+  const navItems = state.currentUser.role === 'admin'
+    ? [
+        { key: 'dashboard', label: 'Dashboard' },
+        { key: 'payments', label: 'Ingresos' },
+        { key: 'clients', label: 'Gestión de clientes' },
+        { key: 'events', label: 'Gestión de eventos' },
+      ]
+    : [
+        { key: 'profile', label: 'Mi perfil' },
+        { key: 'payments', label: 'Mis pagos' },
+        { key: 'events', label: 'Mis eventos' },
+      ];
+
+  const nav = document.createElement('div');
+  nav.className = 'sidebar-nav';
+
+  navItems.forEach(item => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = item.label;
+    button.className = `sidebar-btn${state.activeSection === item.key ? ' active' : ''}`;
+    button.addEventListener('click', () => setSidebarSection(item.key));
+    nav.appendChild(button);
+  });
+
+  elements.sidebarNav.appendChild(nav);
+  elements.sidebarNav.classList.remove('hidden');
+}
+
 function renderTopActions() {
   elements.topActions.innerHTML = '';
   if (!state.currentUser) return;
@@ -84,6 +167,7 @@ function renderTopActions() {
   logoutBtn.className = 'secondary small';
   logoutBtn.addEventListener('click', () => {
     state.currentUser = null;
+    state.activeSection = null;
     saveSession(state);
     renderApp();
     showToast('Has cerrado sesión');
@@ -312,6 +396,45 @@ function renderAdminEvents() {
   });
 }
 
+function renderEventNumbersEditor(event) {
+  ensureEventNumbers(event);
+
+  const numbers = (event.numbers || []).slice(0, 100);
+  const header = `
+    <div class="event-number-editor-header">
+      <span>Estados de números de la rifa</span>
+      <span>${numbers.filter(item => item.status === 'available').length} disponibles</span>
+    </div>
+    <div class="event-number-grid">
+      ${numbers.map(item => `
+        <button
+          type="button"
+          class="event-number-btn"
+          data-status="${item.status || 'available'}"
+          data-number="${item.number}"
+          title="Número ${item.number}: ${getNumberStatusLabel(item.status || 'available')}"
+        >${item.number}</button>
+      `).join('')}
+    </div>
+  `;
+
+  elements.eventNumbersEditor.innerHTML = header;
+  elements.eventNumbersEditor.classList.remove('hidden');
+
+  elements.eventNumbersEditor.querySelectorAll('.event-number-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const eventForEdit = state.events.find(entry => entry.id === state.editingEventId);
+      if (!eventForEdit) return;
+      const number = Number(button.dataset.number);
+      const item = eventForEdit.numbers.find(entry => entry.number === number);
+      if (!item) return;
+      item.status = nextNumberStatus(item.status || 'available');
+      item.ownerId = item.status === 'sold' ? item.ownerId : null;
+      renderEventNumbersEditor(eventForEdit);
+    });
+  });
+}
+
 function saveEvent(event) {
   event.preventDefault();
   const title = elements.eventTitle.value.trim();
@@ -372,11 +495,14 @@ function startEditEvent(id) {
   elements.eventWinnersCount.value = event.winnersCount;
   elements.saveEventBtn.textContent = 'Guardar cambios';
   elements.cancelEventEditBtn.classList.remove('hidden');
+  renderEventNumbersEditor(event);
 }
 
 function resetEventForm() {
   state.editingEventId = null;
   elements.eventForm.reset();
+  elements.eventNumbersEditor.innerHTML = '';
+  elements.eventNumbersEditor.classList.add('hidden');
   elements.saveEventBtn.textContent = 'Crear evento';
   elements.cancelEventEditBtn.classList.add('hidden');
 }
@@ -490,16 +616,58 @@ function renderProfilePhoto() {
 }
 
 function renderPaymentSummary() {
+  const isAdmin = state.currentUser?.role === 'admin';
+  elements.paymentSummaryTitle.textContent = isAdmin ? '💰 Ingresos' : '💳 Mis Pagos';
+
   if (!state.payments || state.payments.length === 0) {
     elements.paymentSummaryList.innerHTML = '<p>No hay pagos registrados aún.</p>';
     return;
   }
 
-  // Si es cliente, mostrar solo sus pagos
-  let paymentsToShow = state.payments;
-  if (state.currentUser?.role === 'client') {
-    paymentsToShow = state.payments.filter(p => p.userId === state.currentUser.id);
+  if (isAdmin) {
+    const eventRevenue = state.events
+      .map(event => {
+        const eventPayments = state.payments.filter(payment => payment.eventId === event.id);
+        const total = eventPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+        return { event, total, count: eventPayments.length };
+      })
+      .filter(item => item.total > 0)
+      .sort((a, b) => b.total - a.total);
+
+    const totalRevenue = eventRevenue.reduce((sum, item) => sum + item.total, 0);
+
+    if (eventRevenue.length === 0) {
+      elements.paymentSummaryList.innerHTML = '<p>No hay ingresos registrados en ningún evento todavía.</p>';
+      return;
+    }
+
+    const rows = eventRevenue
+      .map(({ event, total, count }) => `
+        <div class="card-item">
+          <div class="content">
+            <h3>${event.title}</h3>
+            <p><strong>Participaciones:</strong> ${count}</p>
+            <p><strong>Ingresos:</strong> S/ ${total}</p>
+            <p><strong>Fecha:</strong> ${formatDate(event.date)}</p>
+          </div>
+        </div>
+      `)
+      .join('');
+
+    elements.paymentSummaryList.innerHTML = `
+      <div class="card-item">
+        <div class="content">
+          <h3>Resumen general</h3>
+          <p><strong>Ingresos totales:</strong> S/ ${totalRevenue}</p>
+          <p><strong>Rifas con ingresos:</strong> ${eventRevenue.length}</p>
+        </div>
+      </div>
+      ${rows}
+    `;
+    return;
   }
+
+  let paymentsToShow = state.payments.filter(p => p.userId === state.currentUser.id);
 
   if (paymentsToShow.length === 0) {
     elements.paymentSummaryList.innerHTML = '<p>No hay pagos registrados aún.</p>';
@@ -915,7 +1083,7 @@ function updateAuthModeUI() {
   elements.authSubmitBtn.textContent = isLogin ? 'Entrar' : 'Registrarse';
   elements.authModeTitle.textContent = isLogin ? 'Iniciar sesión' : 'Registro cliente';
   elements.authHint.textContent = isLogin
-    ? `Admin por defecto: ${APP_CONFIG.defaultAdmin.email} / ${APP_CONFIG.defaultAdmin.password}`
+    ? 'Inicia sesión con tu cuenta o crea una nueva cuenta de cliente.'
     : 'Regístrate como cliente y comienza a participar en rifas';
 }
 
@@ -927,27 +1095,39 @@ function renderApp() {
   const showAdmin = isAuthenticated && state.currentUser.role === 'admin';
   const showClient = isAuthenticated && state.currentUser.role === 'client';
 
-  // Dashboard solo para admin
-  elements.dashboardSection.classList.toggle('hidden', !showAdmin);
-  elements.paymentSummarySection.classList.toggle('hidden', !isAuthenticated);
-
-  elements.adminClientsSection.classList.toggle('hidden', !showAdmin);
-  elements.adminEventsSection.classList.toggle('hidden', !showAdmin);
-  elements.clientProfileSection.classList.toggle('hidden', !showClient);
-  elements.clientEventsSection.classList.toggle('hidden', !showClient);
-
   if (!isAuthenticated) {
+    elements.sidebarNav.classList.add('hidden');
+    state.activeSection = null;
     updateAuthModeUI();
     return;
   }
 
+  if (!state.activeSection) {
+    state.activeSection = showAdmin ? 'dashboard' : 'profile';
+  }
+
+  Object.values({
+    dashboard: elements.dashboardSection,
+    paymentSummary: elements.paymentSummarySection,
+    adminClients: elements.adminClientsSection,
+    adminEvents: elements.adminEventsSection,
+    clientProfile: elements.clientProfileSection,
+    clientEvents: elements.clientEventsSection,
+  }).forEach(section => section.classList.add('hidden'));
+
+  renderSidebarNav();
+
   if (showAdmin) {
+    setSidebarSection(state.activeSection || 'dashboard');
     renderDashboard();
     renderPaymentSummary();
     renderClientList();
     renderAdminEvents();
+    return;
   }
+
   if (showClient) {
+    setSidebarSection(state.activeSection || 'profile');
     renderPaymentSummary();
     renderProfile();
     renderClientEvents();

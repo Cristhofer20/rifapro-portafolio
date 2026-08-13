@@ -5,6 +5,7 @@ export const state = {
   currentUser: null,
   editingClientId: null,
   editingEventId: null,
+  activeSection: null,
   adminEventFilter: 'all',
   clientEventFilter: 'upcoming',
   clientSearchTerm: '',
