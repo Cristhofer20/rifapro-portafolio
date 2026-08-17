@@ -8,6 +8,7 @@ import { APP_CONFIG } from './config.js';
 import { state } from './state.js';
 import { loadAppState, saveUsers, saveEvents, savePayments, saveSession } from './storage.js';
 import { formatDate, getEventStatus, getEventStatusLabel, setActiveTab } from './helpers.js';
+import { isValidImageFile } from './imageUtils.js';
 
 const elements = {
   sidebarNav: document.getElementById('sidebarNav'),
@@ -49,6 +50,7 @@ const elements = {
   eventDate: document.getElementById('eventDate'),
   eventWinnersCount: document.getElementById('eventWinnersCount'),
   eventImage: document.getElementById('eventImage'),
+  eventImageUpload: document.getElementById('eventImageUpload'),
   eventDescription: document.getElementById('eventDescription'),
   eventNumbersEditor: document.getElementById('eventNumbersEditor'),
   saveEventBtn: document.getElementById('saveEventBtn'),
@@ -59,6 +61,7 @@ const elements = {
   profileName: document.getElementById('profileName'),
   profileEmail: document.getElementById('profileEmail'),
   profilePassword: document.getElementById('profilePassword'),
+  editProfileBtn: document.getElementById('editProfileBtn'),
   saveProfileBtn: document.getElementById('saveProfileBtn'),
   clientEventsSection: document.getElementById('clientEventsSection'),
   clientEventFilters: document.getElementById('clientEventFilters'),
@@ -160,7 +163,22 @@ function renderTopActions() {
 
   const welcome = document.createElement('div');
   welcome.className = 'welcome-text';
-  welcome.innerHTML = `<strong>${state.currentUser.name}</strong> (${state.currentUser.role})`;
+
+  const avatar = document.createElement('div');
+  if (state.currentUser.photo) {
+    avatar.className = 'user-profile-badge';
+    avatar.style.backgroundImage = `url('${state.currentUser.photo}')`;
+  } else {
+    const initials = (state.currentUser.name || 'U').split(' ').map(part => part[0]).slice(0, 2).join('').toUpperCase();
+    avatar.className = 'user-profile-badge initials';
+    avatar.textContent = initials;
+  }
+
+  const name = document.createElement('strong');
+  name.textContent = state.currentUser.name;
+
+  welcome.appendChild(avatar);
+  welcome.appendChild(name);
 
   const logoutBtn = document.createElement('button');
   logoutBtn.textContent = 'Cerrar sesión';
@@ -543,30 +561,96 @@ function drawEventWinners(id) {
 function showEventDetails(id) {
   const event = state.events.find(entry => entry.id === id);
   if (!event) return;
+
+  ensureEventNumbers(event);
+
   const participants = state.users.filter(user => event.participants.includes(user.id));
   const winners = state.users.filter(user => event.winners.includes(user.id));
   const status = getEventStatus(event);
+  const soldNumbers = (event.numbers || []).filter(item => item.status === 'sold');
+  const availableNumbers = (event.numbers || []).filter(item => item.status === 'available');
+  const blockedNumbers = (event.numbers || []).filter(item => item.status === 'blocked');
+  const remainingNumbers = (event.numbers || []).filter(item => item.status !== 'sold').length;
+  const soldList = soldNumbers.map(item => item.number).join(', ') || 'Ninguno';
+  const availableList = availableNumbers.map(item => item.number).join(', ') || 'Ninguno';
+  const blockedList = blockedNumbers.map(item => item.number).join(', ') || 'Ninguno';
 
   const detailsHtml = `
-    <div class="card-item">
-      <img src="${event.image || 'https://via.placeholder.com/360x180?text=Premio'}" alt="Imagen del premio" />
-      <div class="content">
-        <div>
+    <div class="event-detail-panel">
+      <div class="event-detail-actions">
+        <button type="button" class="secondary small" data-action="back-to-events">← Volver a todos los eventos</button>
+      </div>
+      <div class="event-detail-header">
+        <img src="${event.image || 'https://via.placeholder.com/360x180?text=Premio'}" alt="Imagen del premio" />
+        <div class="event-detail-info">
           <h3>${event.title}</h3>
           <p>${event.description || 'Sin descripción'}</p>
           <p><strong>Fecha:</strong> ${formatDate(event.date)}</p>
-          <p><strong>Estado:</strong> ${getEventStatusLabel(event)}</p>
+          <p><strong>Estado:</strong> <span class="badge ${status}">${getEventStatusLabel(event)}</span></p>
           <p><strong>Participantes:</strong> ${participants.length}</p>
           <p><strong>Ganadores totales:</strong> ${event.winnersCount}</p>
           <p><strong>Ganadores seleccionados:</strong> ${winners.length}</p>
-          <p><strong>Lista de participantes:</strong> ${participants.length ? participants.map(p => p.name).join(', ') : 'Ninguno'}</p>
-          <p><strong>Lista de ganadores:</strong> ${winners.length ? winners.map(w => w.name).join(', ') : 'Ninguno'}</p>
         </div>
+      </div>
+
+      <div class="event-summary-grid">
+        <div class="event-summary-item success">
+          <span>Comprados</span>
+          <strong>${soldNumbers.length}</strong>
+        </div>
+        <div class="event-summary-item neutral">
+          <span>Disponibles</span>
+          <strong>${availableNumbers.length}</strong>
+        </div>
+        <div class="event-summary-item warning">
+          <span>Bloqueados</span>
+          <strong>${blockedNumbers.length}</strong>
+        </div>
+        <div class="event-summary-item info">
+          <span>Faltan</span>
+          <strong>${remainingNumbers}</strong>
+        </div>
+      </div>
+
+      <div class="event-number-groups">
+        <div class="event-number-group">
+          <h4>Números ocupados</h4>
+          <div class="event-number-list sold">${soldList}</div>
+        </div>
+        <div class="event-number-group">
+          <h4>Números libres</h4>
+          <div class="event-number-list available">${availableList}</div>
+        </div>
+        <div class="event-number-group">
+          <h4>Números bloqueados</h4>
+          <div class="event-number-list blocked">${blockedList}</div>
+        </div>
+      </div>
+
+      <div class="event-detail-footer">
+        <p><strong>Participantes:</strong> ${participants.length ? participants.map(p => p.name).join(', ') : 'Ninguno'}</p>
+        <p><strong>Ganadores:</strong> ${winners.length ? winners.map(w => w.name).join(', ') : 'Ninguno'}</p>
       </div>
     </div>
   `;
 
-  elements.dashboardDetails.innerHTML = detailsHtml;
+  elements.adminEventsList.innerHTML = detailsHtml;
+
+  const backButton = elements.adminEventsList.querySelector('[data-action="back-to-events"]');
+  if (backButton) {
+    backButton.addEventListener('click', () => {
+      renderAdminEvents();
+    });
+  }
+}
+
+function setProfileEditMode(isEditing) {
+  const shouldEdit = Boolean(isEditing);
+  elements.profileName.disabled = !shouldEdit;
+  elements.profilePassword.disabled = !shouldEdit;
+  elements.profilePhoto.disabled = !shouldEdit;
+  elements.saveProfileBtn.classList.toggle('hidden', !shouldEdit);
+  elements.editProfileBtn.classList.toggle('hidden', shouldEdit);
 }
 
 function renderProfile() {
@@ -574,6 +658,7 @@ function renderProfile() {
   elements.profileName.value = state.currentUser.name;
   elements.profileEmail.value = state.currentUser.email;
   elements.profilePassword.value = '';
+  setProfileEditMode(false);
   renderProfilePhoto();
 }
 
@@ -590,6 +675,7 @@ function saveProfile(event) {
   if (password) state.currentUser.password = password;
   saveUsers(state);
   renderTopActions();
+  setProfileEditMode(false);
   showToast('Perfil actualizado');
 }
 
@@ -613,6 +699,25 @@ function renderProfilePhoto() {
   } else {
     elements.profilePhotoPreview.classList.add('hidden');
   }
+}
+
+function handleEventImageUpload(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  if (!isValidImageFile(file)) {
+    showToast('Solo se permiten imágenes JPG o PNG');
+    event.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const imageData = reader.result;
+    elements.eventImage.value = imageData;
+    showToast('Imagen del premio cargada');
+  };
+  reader.readAsDataURL(file);
 }
 
 function renderPaymentSummary() {
@@ -1140,7 +1245,9 @@ function bindEvents() {
   elements.clientForm.addEventListener('submit', saveClient);
   elements.cancelClientEditBtn.addEventListener('click', resetClientForm);
   elements.eventForm.addEventListener('submit', saveEvent);
+  elements.eventImageUpload.addEventListener('change', handleEventImageUpload);
   elements.cancelEventEditBtn.addEventListener('click', resetEventForm);
+  elements.editProfileBtn.addEventListener('click', () => setProfileEditMode(true));
   elements.saveProfileBtn.addEventListener('click', saveProfile);
   elements.profilePhoto.addEventListener('change', handleProfilePhoto);
   elements.clientEventsPrevBtn.addEventListener('click', () => scrollEvents(-1));

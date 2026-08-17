@@ -120,6 +120,12 @@
             <input id="eventWinnersCount" type="number" min="1" placeholder="Cantidad de ganadores" />
             <input id="eventImage" type="url" placeholder="URL de imagen del premio" />
           </div>
+          <div class="field-row upload-row">
+            <label class="file-upload event-image-upload">
+              <span>📷 Subir JPG o PNG</span>
+              <input id="eventImageUpload" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" />
+            </label>
+          </div>
           <textarea id="eventDescription" rows="4" placeholder="Descripción del evento"></textarea>
           <div id="eventNumbersEditor" class="event-number-editor hidden"></div>
           <div class="actions-row">
@@ -140,9 +146,12 @@
       <section id="clientProfileSection" class="card hidden">
         <h2>👤 Mi Perfil</h2>
         <form id="profileForm" class="entity-form">
+          <div class="profile-toolbar">
+            <button id="editProfileBtn" type="button" class="secondary">Editar perfil</button>
+          </div>
           <div class="profile-form-group">
             <label>Nombre Completo</label>
-            <input id="profileName" type="text" placeholder="Nombre completo" />
+            <input id="profileName" type="text" placeholder="Nombre completo" disabled />
           </div>
           <div class="profile-form-group">
             <label>Correo Electrónico</label>
@@ -150,18 +159,18 @@
           </div>
           <div class="profile-form-group">
             <label>Nueva Contraseña</label>
-            <input id="profilePassword" type="password" placeholder="Nueva contraseña (opcional)" />
+            <input id="profilePassword" type="password" placeholder="Nueva contraseña (opcional)" disabled />
           </div>
           <div class="profile-form-group">
             <label>Foto de Perfil</label>
-            <label class="file-upload">
+            <label class="file-upload profile-upload">
               <span>📷 Seleccionar foto</span>
-              <input id="profilePhoto" type="file" accept="image/*" />
+              <input id="profilePhoto" type="file" accept="image/*" disabled />
             </label>
             <div id="profilePhotoPreview" class="profile-photo-preview hidden"></div>
           </div>
-          <div class="actions-row">
-            <button id="saveProfileBtn">💾 Guardar cambios</button>
+          <div class="actions-row profile-actions">
+            <button id="saveProfileBtn" class="hidden">💾 Guardar cambios</button>
           </div>
         </form>
       </section>
