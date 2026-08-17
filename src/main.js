@@ -9,6 +9,7 @@ import { state } from './state.js';
 import { loadAppState, saveUsers, saveEvents, savePayments, saveSession } from './storage.js';
 import { formatDate, getEventStatus, getEventStatusLabel, setActiveTab } from './helpers.js';
 import { isValidImageFile } from './imageUtils.js';
+import { initAutoScroll } from './autoScroll.js';
 
 const elements = {
   sidebarNav: document.getElementById('sidebarNav'),
@@ -1287,6 +1288,7 @@ function initialize() {
   loadAppState(state);
   ensureDefaultAdmin();
   bindEvents();
+  initAutoScroll();
   renderApp();
 }
 

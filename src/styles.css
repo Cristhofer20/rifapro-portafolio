@@ -180,6 +180,28 @@ body {
   max-width: 1140px;
   margin: 0 auto;
   padding: 24px 18px 40px;
+  position: relative;
+}
+
+.container::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('../assets/images/backgrounds/raffle-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  opacity: 0.08;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.main-panel {
+  position: relative;
+  z-index: 1;
 }
 
 h1,
@@ -1263,6 +1285,39 @@ tbody tr:hover {
    ======================================== */
 .hidden {
   display: none !important;
+}
+
+/* ========================================
+   SCROLL AUTOMÁTICO
+   ======================================== */
+.scroll-to-section {
+  scroll-behavior: smooth;
+}
+
+.scroll-anchor {
+  display: block;
+  position: relative;
+  visibility: hidden;
+  height: 0;
+  margin-top: -80px;
+}
+
+/* Animación de scroll suave con highlight */
+@keyframes highlightFocus {
+  0% {
+    background: rgba(59, 130, 246, 0);
+  }
+  50% {
+    background: rgba(59, 130, 246, 0.15);
+  }
+  100% {
+    background: rgba(59, 130, 246, 0);
+  }
+}
+
+.card.scroll-highlight {
+  animation: highlightFocus 1.5s ease-out;
+  border-color: rgba(59, 130, 246, 0.4) !important;
 }
 
 /* ========================================
